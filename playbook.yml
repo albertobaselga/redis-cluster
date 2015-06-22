@@ -20,5 +20,4 @@
   remote_user: vagrant
   sudo: yes
   roles:
-    - hardening
-    - perftunning
+    - redis-cluster

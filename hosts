@@ -1,7 +1,5 @@
-[targets]
+[cluster]
 node1 ansible_ssh_host=localhost ansible_ssh_port=2222
 node2 ansible_ssh_host=localhost ansible_ssh_port=2200
 node3 ansible_ssh_host=localhost ansible_ssh_port=2201
-
-[template]
-192.168.87.247
+node4 ansible_ssh_host=localhost ansible_ssh_port=2202
