@@ -1,0 +1,59 @@
+---
+
+### redis  cluster resources
+- Name: Create Redis resources
+  debug: msg="pcs resource create {{ item.key }} ocf:heartbeat:redis
+                bin={{ item.value.bin }}
+                client_bin={{ item.value.client_bin }}
+                config={{ item.value.config }}
+                user={{ item.value.user }}
+                rundir={{ item.value.rundir }}
+                pidfile_name={{ item.value.piffile_name }}
+                socket_name={{ item.value.socket_name }}
+                port={{ item.value.port }}
+                wait_last_known_master={{ item.value.wait_last_known_master }}
+                --master"
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Tunne meta values
+  debug: msg="pcs resource meta {{ item.key }}-master
+                master-max={{ item.value.master-max }}
+                master-node-max={{ item.value.master-node-max }}
+                clone-max={{ item.value.clone-max }}
+                clone-node-max={{ item.value.clone-node-max }}
+                notify={{ item.value.notify }}"
+
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Create VIP
+  debug: msg="pcs resource create {{ item.key }}-vip IPaddr2 \
+                ip=\"{{ item.value.vip_ip }}\"
+                nic=\"{{ item.value.vip_nic }}\"
+                cidr_netmask=\"{{ item.value.vip_cidr_netmask }}\"
+                op start   timeout=\"60s\" interval=\"0s\"  on-fail=\"restart\"
+                op monitor timeout=\"60s\" interval=\"10s\" on-fail=\"restart\"
+                op stop    timeout=\"60s\" interval=\"0s\"  on-fail=\"block\""
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Create Resource group
+  debug: msg="pcs resource group add {{ item.key }}-master-group {{ item.key }}-vip"
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Create colocation constraint
+  debug: msg="pcs constraint colocation add {{ item.key }}-master-group with Master {{ item.key }}-master INFINITY"
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Create promote order constraint
+  debug: msg="pcs constraint order promote {{ item.key }}-master then start {{ item.key }}-master-group symmetrical=false score=INFINITY
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- Name: Create demote order constraint
+  debug: msg="pcs constraint order demote  {{ item.key }}-master then stop {{ item.key }}-master-group symmetrical=false score=0
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]

@@ -1,0 +1,13 @@
+---
+
+- include: base_sw.yml
+  tags: [install, base]
+
+- include: cluster_init.yml
+  tags: [install, init]
+
+- include: redis_install.yml
+  tags: [install, redis]
+
+- include: cluster_resources.yml
+  tags: [config_cluster, redis]

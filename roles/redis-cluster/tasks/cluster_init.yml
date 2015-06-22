@@ -1,0 +1,40 @@
+---
+### Cluster Initialization
+- Name: Setup cluster user {{ cluster_password }}
+echo {{ cluster_password }} | passwd --stdin hacluster
+  tags: [install, init]
+
+- Name: Do Cluster authorization to all cluster nodes
+pcs cluster auth node1 node2 node3 node4 -u hacluster -p {{ cluster_password }}
+  run_once: True
+  tags: [install, init]
+
+- Name: Create cluster {{ cluster_name }}
+pcs cluster setup --name gbe-bus node1 node2 node3 node4
+  run_once: True
+  tags: [install, init]
+
+- Name: Enable cluster services at boot time
+pcs cluster enable --all
+  run_once: True
+  tags: [install, init]
+
+- Name: start cluster sertvices on all nodes
+pcs cluster start --all
+  run_once: True
+  tags: [install, init]
+
+
+
+## Optional
+- Name: Disable STONITH
+pcs property set stonith-enabled=false
+  run_once: True
+  when: disable_stonith
+  tags: [install, init]
+
+- Name: Disable Quorum
+pcs property set no-quorum-policy=ignore
+  run_once: True
+  when: disable_quorum
+  tags: [install, init]

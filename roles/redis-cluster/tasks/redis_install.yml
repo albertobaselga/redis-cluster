@@ -1,0 +1,60 @@
+---
+
+### Install Redis software
+- Name: Install redis RPM
+  yum: name={{ item }}
+       state=present
+       disablerepo=*
+       enablerepo=connect
+  with_items:
+     - redis-server
+  tags: [install, redis]
+
+- Name: 1. Disable old/default redis config file
+  stat: /etc/redis.conf
+  register: redis_conf
+  when: disable_old_redis
+  tags: [install, redis]
+
+- Name: 2. Disable old/default redis config file
+  command: mv /etc/redis.conf /etc/redis.conf.deprecated
+  when: disable_old_redis and redis_conf
+  tags: [install, redis]
+
+- Name: 1. Disable old/default redis init file
+  stat: /etc/init.d/redis
+  register: redis_init
+  when: disable_old_redis
+  tags: [install, redis]
+
+- Name: 2. Disable old/default redis init file
+  command: mv /etc/init.d/redis /etc/init.d/redis-donotuse
+  when: disable_old_redis and redis_init
+  tags: [install, redis]
+
+- Name: Disable old/default redis from boot process
+  service:  name=redis
+            enabled=no
+  when: disable_old_redis
+  tags: [install, redis]
+
+- Name: Deploy OCF agent
+  copy: src=redis-ocf-agent
+        dest=/usr/lib/ocf/resource.d/heartbeat/redis
+        owner=root
+        group=root
+  tags: [install, redis, config]
+
+- Name: Deploy Redis Queue configuration file (use template)
+  copy: src=redis-queue.conf
+        dest=/etc/redis-queue.conf
+        owner=root
+        group=root
+  tags: [install, redis, config]
+
+- Name: Deploy Redis Cache configuration file (use template)
+  copy: src=redis-cache.conf
+        dest=/etc/redis-cache.conf
+        owner=root
+        group=root
+  tags: [install, redis, config]
