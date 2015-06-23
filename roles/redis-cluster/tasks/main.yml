@@ -1,6 +1,21 @@
 ---
 - name: Install basic tools
   yum: name=libselinux-python state=present
+  tags: basic
+
+- name: Check files in /etc/modprobe.d
+  command: ls /etc/modprobe.d/
+  register: modprobe_files
+  tags: basic
+
+- name: Ensure sctp not disabled
+  lineinfile: >
+    state=absent
+    dest=/etc/modprobe.d/{{ item }}
+    line="install sctp /bin/true"
+  with_items:
+    - "{{ modprobe_files.stdout_lines }}"
+  tags: basic
 
 - include: base_sw.yml
   tags: [install, base]

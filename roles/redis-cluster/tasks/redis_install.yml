@@ -1,19 +1,60 @@
 ---
 
+- name: Put node in standby mode
+  shell: pcs cluster standby
+
+
 ### Install Redis software
-- name: Install redis RPM
-  yum: name={{ item }}
-       state=present
+## https://github.com/DavidWittman/ansible-redis/blob/master/tasks/install.yml
+- name: install dependencies
+  yum: name={{ item }}  update_cache=yes state=present
   with_items:
-     - redis
+    - gcc
+    - make
   tags: [install, redis]
 
-- name: Disable old/default redis from boot process
-  service:  name=redis
-            enabled=no
-            state=stopped
-  when: disable_old_redis
-  ignore_errors: yes
+- name: enable overcommit in sysctl
+  sysctl: name=vm.overcommit_memory value=1 state=present reload=yes ignoreerrors=yes
+  tags: [install, redis]
+
+- name: download redis
+  get_url: url=http://download.redis.io/releases/redis-{{ redis_version }}.tar.gz
+           dest=/usr/local/src/redis-{{ redis_version }}.tar.gz
+  tags: [install, redis]
+
+- name: extract redis tarball
+  shell: tar xf /usr/local/src/redis-{{ redis_version }}.tar.gz -C /usr/local/src
+         creates=/usr/local/src/redis-{{ redis_version }}
+  tags: [install, redis]
+
+- name: compile redis
+  command: make -j5
+           chdir=/usr/local/src/redis-{{ redis_version }}
+           creates=/usr/local/src/redis-{{ redis_version }}/src/redis-server
+  tags: [install, redis]
+
+- name: create redis install directory
+  file: path={{ redis_install_dir }} state=directory
+  tags: [install, redis]
+
+- name: install redis
+  command: make PREFIX={{ redis_install_dir }} install
+           chdir=/usr/local/src/redis-{{ redis_version }}
+           creates={{ redis_install_dir }}/bin/redis-server
+  tags: [install, redis]
+
+- name: Deploy Redis Queue configuration file (use template)
+  template: src=redis.conf
+        dest=/etc/{{ item.key }}.conf
+        owner=root
+        group=root
+        mode="u=rw,g=r,o=r"
+  with_dict: "{{redis}}"
+  tags: [install, redis, config]
+
+- name: create run dirs
+  file: path={{ item.value.rundir }} state=directory
+  with_dict: "{{redis}}"
   tags: [install, redis]
 
 - name: Deploy OCF agent
@@ -22,3 +63,7 @@
         owner=root
         group=root
   tags: [install, redis, config]
+
+
+- name: Enable node again
+  shell: pcs cluster unstandby

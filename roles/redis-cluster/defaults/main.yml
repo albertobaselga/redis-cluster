@@ -6,14 +6,19 @@ disable_stonith: Yes
 disable_quorum: Yes
 disable_old_redis: Yes
 
+redis_version: stable
+redis_install_dir: /opt/redis
+
 redis:
   redis_array_1:
-    bin: /opt/redis/bin/redis-server
-    client_bin: /opt/redis/bin/redis-cli
+    bin: "{{ redis_install_dir }}/bin/redis-server"
+    client_bin: "{{ redis_install_dir }}/bin/redis-cli"
     # Redis properties
     daemonize: "yes"
     user: root
     rundir: /var/run/redis
+    loglevel: notice
+    logfile:
     port: 6379
     wait_last_known_master: 0     # 1 - if you want to recover last master.
     save:
@@ -38,6 +43,7 @@ redis:
     daemonize: "yes"
     user: root
     rundir: /var/run/redis
+    loglevel: notice
     port: 6378
     wait_last_known_master: 0     # 1 - if you want to recover last master.
     save:

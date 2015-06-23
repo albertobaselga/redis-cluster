@@ -2,14 +2,22 @@
 
 ### redis  cluster resources
 
-- name: Deploy Redis Queue configuration file (use template)
-  template: src=redis.conf
-        dest=/etc/{{ item.key }}.conf
-        owner=root
-        group=root
-        mode="u=rw,g=r,o=r"
+- name: Check if Redis Resources already exists
+  shell: "pcs resource | grep '{{ item.key }}' | grep Master | wc -l"
+  register: resource_exist
   with_dict: "{{redis}}"
-  tags: [install, redis, config]
+  tags: [config_cluster, redis]
+
+- name: Set fatcs about if resources already exists
+  set_fact: resource_{{ item.item.key }}=True
+  when: >
+    item.stdout >= 1
+  with_items: resource_exist.results
+  tags: [config_cluster, redis]
+#
+# - name: Display all variables/facts known for a host
+#   debug: var=hostvars[inventory_hostname]
+#   tags: [config_cluster, redis]
 
 - name: Create Redis resources
   shell: pcs resource create {{ item.key }} ocf:heartbeat:redis
@@ -18,14 +26,34 @@
                 config=/etc/{{ item.key }}.conf
                 user={{ item.value.user }}
                 rundir={{ item.value.rundir }}
-                pidfile_name={{ item.value.pidfile_name }}
-                socket_name={{ item.value.socket_name }}
+                pidfile_name={{ item.key }}.pid
+                socket_name={{ item.key }}.sock
                 port={{ item.value.port }}
                 wait_last_known_master={{ item.value.wait_last_known_master }}
                 --master
+  when: resource_{{ item.key }}==False
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
+
+
+- name: Update Redis resources
+  shell: pcs resource update {{ item.key }}-master
+                bin={{ item.value.bin }}
+                client_bin={{ item.value.client_bin }}
+                config=/etc/{{ item.key }}.conf
+                user={{ item.value.user }}
+                rundir={{ item.value.rundir }}
+                pidfile_name={{ item.key }}.pid
+                socket_name={{ item.key }}.sock
+                port={{ item.value.port }}
+                wait_last_known_master={{ item.value.wait_last_known_master }}
+  when: resource_{{ item.key }}==True
+  with_dict: "{{redis}}"
+  run_once: true
+  tags: [config_cluster, redis]
+
+
 
 - name: Tunne meta values
   shell: pcs resource meta {{ item.key }}-master
@@ -38,6 +66,20 @@
   run_once: true
   tags: [config_cluster, redis]
 
+
+- name: Check if Redis VIP Resources already exists
+  shell: "pcs resource | grep '{{ item.key }}-vip'| wc -l"
+  register: resource_vip_exist
+  with_dict: "{{redis}}"
+  tags: [config_cluster, redis]
+
+- name: Set fatcs about if VIP resources already exists
+  set_fact: resource_vip_{{ item.item.key }}=True
+  when: >
+    item.stdout >= 1
+  with_items: resource_vip_exist.results
+  tags: [config_cluster, redis]
+
 - name: Create VIP
   shell: pcs resource create {{ item.key }}-vip IPaddr2 \
                 ip="{{ item.value.vip_ip }}"
@@ -46,30 +88,49 @@
                 op start   timeout="60s" interval="0s"  on-fail="restart"
                 op monitor timeout="60s" interval="10s" on-fail="restart"
                 op stop    timeout="60s" interval="0s"  on-fail="block"
+  when: resource_vip_{{ item.key }}==False
+  with_dict: "{{redis}}"
+  run_once: true
+  tags: [config_cluster, redis]
+
+
+- name: Update VIP
+  shell: pcs resource update {{ item.key }}-vip \
+                ip="{{ item.value.vip_ip }}"
+                nic="{{ item.value.vip_nic }}"
+                cidr_netmask="{{ item.value.vip_cidr_netmask }}"
+                op start   timeout="60s" interval="0s"  on-fail="restart"
+                op monitor timeout="60s" interval="10s" on-fail="restart"
+                op stop    timeout="60s" interval="0s"  on-fail="block"
+  when: resource_vip_{{ item.key }}==True
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create Resource group
   shell: pcs resource group add {{ item.key }}-master-group {{ item.key }}-vip
+  when: resource_vip_{{ item.key }}==False
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create colocation constraint
   shell: pcs constraint colocation add {{ item.key }}-master-group with Master {{ item.key }}-master INFINITY
+  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create promote order constraint
   shell: pcs constraint order promote {{ item.key }}-master then start {{ item.key }}-master-group symmetrical=false score=INFINITY
+  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create demote order constraint
   shell: pcs constraint order demote  {{ item.key }}-master then stop {{ item.key }}-master-group symmetrical=false score=0
+  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
