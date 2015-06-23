@@ -1,5 +1,5 @@
 
-=== REDIS CLUSTER ===
+# REDIS CLUSTER
 
 Ansible Playbook to deploy and maintain several Redis Clusters (1-Master/n-Slaves) on top of a Corosyn/Pacekamer cluster. Features:
   - Multiple Redis Cluster
