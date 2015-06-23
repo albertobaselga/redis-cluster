@@ -1,60 +1,69 @@
 ---
 
+- name: Put node in standby mode
+  shell: pcs cluster standby
+
+
 ### Install Redis software
-- Name: Install redis RPM
-  yum: name={{ item }}
-       state=present
-       disablerepo=*
-       enablerepo=connect
+## https://github.com/DavidWittman/ansible-redis/blob/master/tasks/install.yml
+- name: install dependencies
+  yum: name={{ item }}  update_cache=yes state=present
   with_items:
-     - redis-server
+    - gcc
+    - make
   tags: [install, redis]
 
-- Name: 1. Disable old/default redis config file
-  stat: /etc/redis.conf
-  register: redis_conf
-  when: disable_old_redis
+- name: enable overcommit in sysctl
+  sysctl: name=vm.overcommit_memory value=1 state=present reload=yes ignoreerrors=yes
   tags: [install, redis]
 
-- Name: 2. Disable old/default redis config file
-  command: mv /etc/redis.conf /etc/redis.conf.deprecated
-  when: disable_old_redis and redis_conf
+- name: download redis
+  get_url: url=http://download.redis.io/releases/redis-{{ redis_version }}.tar.gz
+           dest=/usr/local/src/redis-{{ redis_version }}.tar.gz
   tags: [install, redis]
 
-- Name: 1. Disable old/default redis init file
-  stat: /etc/init.d/redis
-  register: redis_init
-  when: disable_old_redis
+- name: extract redis tarball
+  shell: tar xf /usr/local/src/redis-{{ redis_version }}.tar.gz -C /usr/local/src
+         creates=/usr/local/src/redis-{{ redis_version }}
   tags: [install, redis]
 
-- Name: 2. Disable old/default redis init file
-  command: mv /etc/init.d/redis /etc/init.d/redis-donotuse
-  when: disable_old_redis and redis_init
+- name: compile redis
+  command: make -j5
+           chdir=/usr/local/src/redis-{{ redis_version }}
+           creates=/usr/local/src/redis-{{ redis_version }}/src/redis-server
   tags: [install, redis]
 
-- Name: Disable old/default redis from boot process
-  service:  name=redis
-            enabled=no
-  when: disable_old_redis
+- name: create redis install directory
+  file: path={{ redis_install_dir }} state=directory
   tags: [install, redis]
 
-- Name: Deploy OCF agent
+- name: install redis
+  command: make PREFIX={{ redis_install_dir }} install
+           chdir=/usr/local/src/redis-{{ redis_version }}
+           creates={{ redis_install_dir }}/bin/redis-server
+  tags: [install, redis]
+
+- name: Deploy Redis Queue configuration file (use template)
+  template: src=redis.conf
+        dest=/etc/{{ item.key }}.conf
+        owner=root
+        group=root
+        mode="u=rw,g=r,o=r"
+  with_dict: "{{redis}}"
+  tags: [install, redis, config]
+
+- name: create run dirs
+  file: path={{ item.value.rundir }} state=directory
+  with_dict: "{{redis}}"
+  tags: [install, redis]
+
+- name: Deploy OCF agent
   copy: src=redis-ocf-agent
         dest=/usr/lib/ocf/resource.d/heartbeat/redis
         owner=root
         group=root
   tags: [install, redis, config]
 
-- Name: Deploy Redis Queue configuration file (use template)
-  copy: src=redis-queue.conf
-        dest=/etc/redis-queue.conf
-        owner=root
-        group=root
-  tags: [install, redis, config]
 
-- Name: Deploy Redis Cache configuration file (use template)
-  copy: src=redis-cache.conf
-        dest=/etc/redis-cache.conf
-        owner=root
-        group=root
-  tags: [install, redis, config]
+- name: Enable node again
+  shell: pcs cluster unstandby

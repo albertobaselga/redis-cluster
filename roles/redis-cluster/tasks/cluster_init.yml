@@ -1,40 +1,57 @@
 ---
 ### Cluster Initialization
-- Name: Setup cluster user {{ cluster_password }}
-echo {{ cluster_password }} | passwd --stdin hacluster
+- name: Setup cluster user {{ cluster_password }}
+  shell: echo "{{ cluster_password }}" | passwd --stdin hacluster
   tags: [install, init]
 
-- Name: Do Cluster authorization to all cluster nodes
-pcs cluster auth node1 node2 node3 node4 -u hacluster -p {{ cluster_password }}
+  # http://adamj.eu/tech/2014/10/02/merging-groups-and-hostvars-in-ansible-variables/
+  # https://github.com/wefner/ansible-vagrant/blob/fix/httpd-cluster/adv/code/roles/clustering/tasks/main.yml
+- name: Cluster nodes list
+  debug:
+    msg: |
+      {% set space = joiner(" ") %}
+      {% for item in [groups['cluster']][0] -%}
+        {{ space() }}{{ item }}
+      {%- endfor %}
+  run_once: true
+  register: cluster_nodes_list
+  tags: [install, init]
+
+- name: Set nodes list as a fact
+  set_fact: cluster_nodes="{{ cluster_nodes_list.msg }}"
+  tags: [configuration, cluster]
+
+- name: Auth nodes
+  shell: "pcs cluster auth {{ cluster_nodes }} -u hacluster -p {{ cluster_password }}"
+  run_once: true
+  tags: [install, init]
+
+- name: Create cluster {{ cluster_name }}
+  shell: pcs cluster setup --name {{ cluster_name }} {{ cluster_nodes }}
   run_once: True
   tags: [install, init]
 
-- Name: Create cluster {{ cluster_name }}
-pcs cluster setup --name gbe-bus node1 node2 node3 node4
+- name: Enable cluster services at boot time
+  shell: pcs cluster enable --all
   run_once: True
   tags: [install, init]
 
-- Name: Enable cluster services at boot time
-pcs cluster enable --all
-  run_once: True
-  tags: [install, init]
-
-- Name: start cluster sertvices on all nodes
-pcs cluster start --all
+- name: start cluster sertvices on all nodes
+  shell: pcs cluster start --all
   run_once: True
   tags: [install, init]
 
 
 
 ## Optional
-- Name: Disable STONITH
-pcs property set stonith-enabled=false
+- name: Disable STONITH
+  shell: pcs property set stonith-enabled=false
   run_once: True
   when: disable_stonith
   tags: [install, init]
 
-- Name: Disable Quorum
-pcs property set no-quorum-policy=ignore
+- name: Disable Quorum
+  shell: pcs property set no-quorum-policy=ignore
   run_once: True
   when: disable_quorum
   tags: [install, init]

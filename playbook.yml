@@ -19,6 +19,6 @@
   accelerate: false
   remote_user: vagrant
   sudo: yes
+  serial: 50%
   roles:
-    - hardening
-    - perftunning
+    - redis-cluster
