@@ -14,8 +14,6 @@ redis:
     daemonize: "yes"
     user: root
     rundir: /var/run/redis
-    pidfile_name: redis-queue.pid
-    socket_name: redis-queue.sock
     port: 6379
     wait_last_known_master: 0     # 1 - if you want to recover last master.
     save:
@@ -40,8 +38,6 @@ redis:
     daemonize: "yes"
     user: root
     rundir: /var/run/redis
-    pidfile_name: redis-cache.pid
-    socket_name: redis-cache.sock
     port: 6378
     wait_last_known_master: 0     # 1 - if you want to recover last master.
     save:
