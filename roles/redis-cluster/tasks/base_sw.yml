@@ -1,11 +1,7 @@
 ---
-
-  ### Install Software Base
-- Name: Install Cluster Base Software
+- name: Install Cluster Base Software
   yum: name={{ item }}
        state=present
-       disablerepo=*
-       enablerepo=connect
   with_items:
      - pacemaker
      - corosync
@@ -14,13 +10,13 @@
      - resource-agents
   tags: [install, base]
 
-- Name: Enable pcsd daemon at boot time and start it
+- name: Enable pcsd daemon at boot time and start it
   service: name=pcsd
            enabled=yes
            state=started
   tags: [install, base]
 
-- Name: Disable Cosorync daemon at boot time and stop it
+- name: Disable Cosorync daemon at boot time and stop it
   service: name=corosync
            enabled=no
            state=stopped

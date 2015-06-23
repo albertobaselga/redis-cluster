@@ -4,24 +4,29 @@ cluster_name: redis-cluster
 cluster_password: hacluster
 disable_stonith: Yes
 disable_quorum: Yes
-disable_old_redis: No
+disable_old_redis: Yes
 
 redis:
   redis_array_1:
     bin: /opt/redis/bin/redis-server
     client_bin: /opt/redis/bin/redis-cli
-    config: /etc/redis-queue.conf
+    # Redis properties
+    daemonize: "yes"
     user: root
     rundir: /var/run/redis
     pidfile_name: redis-queue.pid
     socket_name: redis-queue.sock
     port: 6379
     wait_last_known_master: 0     # 1 - if you want to recover last master.
+    save:
+      - 900 1
+      - 300 10
+      - 60 10000
     # Meta properties
-    master-max: 1
-    master-node-max: 1
-    clone-max: 3
-    clone-node-max: 1
+    master_max: 1
+    master_node_max: 1
+    clone_max: 3
+    clone_node_max: 1
     notify: true
     # Virtual IP configuration
     vip_ip: 172.28.128.100
@@ -31,18 +36,25 @@ redis:
   redis_array_2:
     bin: /opt/redis/bin/redis-server
     client_bin: /opt/redis/bin/redis-cli
-    config: /etc/redis-cache.conf
+    # Redis properties
+    daemonize: "yes"
     user: root
     rundir: /var/run/redis
     pidfile_name: redis-cache.pid
     socket_name: redis-cache.sock
     port: 6378
-    wait_last_known_master: 0
-    master-max: 1
-    master-node-max: 1
-    clone-max: 3
-    clone-node-max: 1
+    wait_last_known_master: 0     # 1 - if you want to recover last master.
+    save:
+      - 900 1
+      - 300 10
+      - 60 10000
+    # Meta properties
+    master_max: 1
+    master_node_max: 1
+    clone_max: 3
+    clone_node_max: 1
     notify: true
+    # Virtual IP configuration
     vip_ip: 172.28.128.101
     vip_nic: eth1
     vip_cidr_netmask: 24

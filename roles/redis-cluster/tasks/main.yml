@@ -1,4 +1,6 @@
 ---
+- name: Install basic tools
+  yum: name=libselinux-python state=present
 
 - include: base_sw.yml
   tags: [install, base]
