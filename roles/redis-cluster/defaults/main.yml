@@ -37,8 +37,8 @@ redis:
     vip_cidr_netmask: 24
 
   redis_array_2:
-    bin: {{ redis_install_dir }}/bin/redis-server
-    client_bin: {{ redis_install_dir }}/bin/redis-cli
+    bin: "{{ redis_install_dir }}/bin/redis-server"
+    client_bin: "{{ redis_install_dir }}/bin/redis-cli"
     # Redis properties
     daemonize: "yes"
     user: root
@@ -47,9 +47,7 @@ redis:
     port: 6378
     wait_last_known_master: 0     # 1 - if you want to recover last master.
     save:
-      - 900 10
-      - 300 100
-      - 60 100000
+      - 
     # Meta properties
     master_max: 1
     master_node_max: 1

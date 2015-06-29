@@ -8,13 +8,16 @@
   with_dict: "{{redis}}"
   tags: [config_cluster, redis]
 
+# - name: Print results
+#   debug: msg="{{ resource_exist.results }}"
+#   tags: [config_cluster, redis]
+
+
 - name: Set fatcs about if resources already exists
-  set_fact: resource_{{ item.item.key }}=True
-  when: >
-    item.stdout >= 1
+  set_fact: resource_{{ item.item.key }}={{item.stdout}}
   with_items: resource_exist.results
   tags: [config_cluster, redis]
-#
+
 # - name: Display all variables/facts known for a host
 #   debug: var=hostvars[inventory_hostname]
 #   tags: [config_cluster, redis]
@@ -31,7 +34,7 @@
                 port={{ item.value.port }}
                 wait_last_known_master={{ item.value.wait_last_known_master }}
                 --master
-  when: resource_{{ item.key }}==False
+  when: resource_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
@@ -48,7 +51,7 @@
                 socket_name={{ item.key }}.sock
                 port={{ item.value.port }}
                 wait_last_known_master={{ item.value.wait_last_known_master }}
-  when: resource_{{ item.key }}==True
+  when: resource_{{ item.key }}=="1"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
@@ -74,7 +77,7 @@
   tags: [config_cluster, redis]
 
 - name: Set fatcs about if VIP resources already exists
-  set_fact: resource_vip_{{ item.item.key }}=True
+  set_fact: resource_vip_{{ item.item.key }}={{ item.stdout }}
   when: >
     item.stdout >= 1
   with_items: resource_vip_exist.results
@@ -88,7 +91,7 @@
                 op start   timeout="60s" interval="0s"  on-fail="restart"
                 op monitor timeout="60s" interval="10s" on-fail="restart"
                 op stop    timeout="60s" interval="0s"  on-fail="block"
-  when: resource_vip_{{ item.key }}==False
+  when: resource_vip_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
@@ -102,35 +105,35 @@
                 op start   timeout="60s" interval="0s"  on-fail="restart"
                 op monitor timeout="60s" interval="10s" on-fail="restart"
                 op stop    timeout="60s" interval="0s"  on-fail="block"
-  when: resource_vip_{{ item.key }}==True
+  when: resource_vip_{{ item.key }}=="1"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create Resource group
   shell: pcs resource group add {{ item.key }}-master-group {{ item.key }}-vip
-  when: resource_vip_{{ item.key }}==False
+  when: resource_vip_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create colocation constraint
   shell: pcs constraint colocation add {{ item.key }}-master-group with Master {{ item.key }}-master INFINITY
-  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
+  when: resource_vip_{{ item.key }}=="0" or resource_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create promote order constraint
   shell: pcs constraint order promote {{ item.key }}-master then start {{ item.key }}-master-group symmetrical=false score=INFINITY
-  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
+  when: resource_vip_{{ item.key }}=="0" or resource_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
 
 - name: Create demote order constraint
   shell: pcs constraint order demote  {{ item.key }}-master then stop {{ item.key }}-master-group symmetrical=false score=0
-  when: resource_vip_{{ item.key }}==False or resource_{{ item.key }}==False
+  when: resource_vip_{{ item.key }}=="0" or resource_{{ item.key }}=="0"
   with_dict: "{{redis}}"
   run_once: true
   tags: [config_cluster, redis]
