@@ -78,8 +78,6 @@
 
 - name: Set fatcs about if VIP resources already exists
   set_fact: resource_vip_{{ item.item.key }}={{ item.stdout }}
-  when: >
-    item.stdout >= 1
   with_items: resource_vip_exist.results
   tags: [config_cluster, redis]
 
